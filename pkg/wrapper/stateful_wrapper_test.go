@@ -2,7 +2,6 @@ package wrapper
 
 import (
 	"fmt"
-	"github.com/spf13/viper"
 	"testing"
 
 	"github.com/Checkmarx/gen-ai-wrapper/pkg/connector"
@@ -58,21 +57,8 @@ func TestCallGPT_FS(t *testing.T) {
 }
 
 func TestCallGPT_ToProxy(t *testing.T) {
-	cfg := Config{}
-	viper.AddConfigPath(".")
-	viper.SetConfigName(".env")
-	viper.SetConfigType("env")
-	if err := viper.ReadInConfig(); err != nil {
-		t.Fatal("Error reading env file", err)
-	}
-	if err := viper.Unmarshal(&cfg); err != nil {
-		t.Fatal(err)
-	}
 	var history []message.Message
-	wrapper, err := NewStatefulWrapperNew(connector.NewFileSystemConnector(""), cfg.EndPointGRPC, apikey, models.GPT4, 4, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	wrapper := NewStatefulWrapper(connector.NewFileSystemConnector(""), apikey, models.GPT4, 4, 0)
 	id := wrapper.GenerateId()
 	t.Log(id)
 	for _, q := range userQuestions {

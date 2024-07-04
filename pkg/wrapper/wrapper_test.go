@@ -1,8 +1,25 @@
 package wrapper
 
-import "os"
+import (
+	"github.com/spf13/viper"
+	"testing"
+)
 
-var apikey = os.Getenv("GPT-APIKEY")
+var apikey string
+
+func TestMain(m *testing.M) {
+	cfg := Config{}
+	viper.SetConfigType("env")
+	viper.AddConfigPath(".")
+	viper.SetConfigFile(".env")
+	if err := viper.ReadInConfig(); err != nil {
+		panic("Error reading env file")
+	}
+	if err := viper.Unmarshal(&cfg); err != nil {
+		panic(err)
+	}
+	apikey = cfg.ApiKey
+}
 
 const systemInput = `You are the Checkmarx AI Guided Remediation bot who can answer technical questions related to the results of Infrastructure as Code Security.
 You should be able to analyze and understand both the technical aspects of the security results and the common queries users may have about the results.

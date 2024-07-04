@@ -4,19 +4,15 @@ executors:
     machine:
       image: default
       docker_layer_caching: true
-      resource_class: large
+      resource_class: small
   go-container:
     docker:
       - image: golang:1.22.1
-    resource_class: large
+    resource_class: small
   go-lint:
     docker:
       - image: golangci/golangci-lint:v1.56.2-alpine
-    resource_class: xlarge
-
-orbs:
-  checkmarx: checkmarx/circleci-kpi-shipper@0.11.0
-  ast-circleci-libs: checkmarx/ast-circleci-libs@2
+    resource_class: small
 
 jobs:
   lint:
