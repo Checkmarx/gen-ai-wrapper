@@ -4,7 +4,7 @@ executors:
     machine:
       image: default
       docker_layer_caching: true
-      resource_class: large
+      resource_class: medium
   go-container:
     docker:
       - image: golang:1.22.1
@@ -12,7 +12,7 @@ executors:
   go-lint:
     docker:
       - image: golangci/golangci-lint:v1.56.2-alpine
-    resource_class: large
+    resource_class: medium
 
 jobs:
   lint:
