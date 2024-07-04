@@ -14,10 +14,6 @@ executors:
       - image: golangci/golangci-lint:v1.56.2-alpine
     resource_class: xlarge
 
-orbs:
-  checkmarx: checkmarx/circleci-kpi-shipper@0.11.0
-  ast-circleci-libs: checkmarx/ast-circleci-libs@2
-
 jobs:
   lint:
     executor:
