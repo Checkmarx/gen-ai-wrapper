@@ -12,7 +12,7 @@ executors:
   go-lint:
     docker:
       - image: golangci/golangci-lint:v1.56.2-alpine
-    resource_class: medium
+    resource_class: small
 
 jobs:
   lint:
