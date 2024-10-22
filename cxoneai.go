@@ -3,18 +3,9 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
-	"time"
-)
-
-var (
-	accessToken    string
-	expirationTime time.Time
-	tokenMutex     sync.Mutex
 )
 
 const (
@@ -31,14 +22,7 @@ type OAuthTokenResponse struct {
 }
 
 func GetCxOneAIAccessKey() (string, error) {
-	if accessToken == "" {
-		if err := getOAuthAccessToken(); err != nil {
-			return "", err
-		}
-		StartTokenRefresher()
-	}
-	return accessToken, nil
-
+	return getOAuthAccessToken()
 }
 
 func GetCxOneAIEndpoint() (string, error) {
@@ -50,18 +34,18 @@ func GetCxOneAIEndpoint() (string, error) {
 	return endpoint, nil
 }
 
-func getOAuthAccessToken() error {
+func getOAuthAccessToken() (string, error) {
 	openIDURL, err := GetEnvKeyValue(cx1OAuthURLEnv)
 	if err != nil {
-		return err
+		return "", err
 	}
 	clientID, err := GetEnvKeyValue(cx1ClientIDEnv)
 	if err != nil {
-		return err
+		return "", err
 	}
 	clientSecret, err := GetEnvKeyValue(cx1ClientSecretEnv)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	data := url.Values{}
@@ -71,7 +55,7 @@ func getOAuthAccessToken() error {
 
 	req, err := http.NewRequest("POST", openIDURL, strings.NewReader(data.Encode()))
 	if err != nil {
-		return err
+		return "", err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
@@ -79,36 +63,18 @@ func getOAuthAccessToken() error {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return errors.New("failed to get access token")
+		return "", errors.New("failed to get access token")
 	}
 
 	var tokenResponse OAuthTokenResponse
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResponse); err != nil {
-		return err
+		return "", err
 	}
 
-	tokenMutex.Lock()
-	expirationTime = time.Now().Add(time.Duration(tokenResponse.ExpiresIn) * time.Second)
-	accessToken = tokenResponse.AccessToken
-	tokenMutex.Unlock()
-	return nil
-}
-
-func StartTokenRefresher() {
-	go func() {
-		for {
-			time.Sleep(time.Until(expirationTime.Add(-1 * time.Minute)))
-			err := getOAuthAccessToken()
-			if err != nil {
-				fmt.Printf("Failed to refresh CxOne OAuth token: %v\n", err)
-				continue
-			}
-			fmt.Println("Refreshed CxOne OAuth token")
-		}
-	}()
+	return tokenResponse.AccessToken, nil
 }
