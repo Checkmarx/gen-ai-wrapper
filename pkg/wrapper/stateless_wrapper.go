@@ -14,8 +14,10 @@ import (
 const OpenAiEndPoint = "https://api.openai.com/v1/chat/completions"
 
 type StatelessWrapper interface {
-	SecureCall(cxAuth string, metaData *message.MetaData, history []message.Message, newMessages []message.Message) ([]message.Message, error)
-	CallReturningFullResponse(cxAuth string, metaData *message.MetaData, history []message.Message, newMessages []message.Message) (*message.ChatResponse, error)
+	SecureCall(
+		cxAuth string, metaData *message.MetaData, history []message.Message, newMessages []message.Message) ([]message.Message, error)
+	SecureCallReturningFullResponse(
+		cxAuth string, metaData *message.MetaData, history []message.Message, newMessages []message.Message) (*message.ChatResponse, error)
 	Call(history []message.Message, newMessages []message.Message) ([]message.Message, error)
 	SetupCall(setupMessages []message.Message)
 	MaskSecrets(fileContent string) (*maskedSecret.MaskedEntry, error)
@@ -48,15 +50,17 @@ func (w *StatelessWrapperImpl) SetupCall(setupMessages []message.Message) {
 	w.wrapper.SetupCall(setupMessages)
 }
 
-func (w *StatelessWrapperImpl) SecureCall(cxAuth string, metaData *message.MetaData, history []message.Message, newMessages []message.Message) ([]message.Message, error) {
-	response, err := w.CallReturningFullResponse(cxAuth, metaData, history, newMessages)
+func (w *StatelessWrapperImpl) SecureCall(
+	cxAuth string, metaData *message.MetaData, history []message.Message, newMessages []message.Message) ([]message.Message, error) {
+	response, err := w.SecureCallReturningFullResponse(cxAuth, metaData, history, newMessages)
 	if err != nil {
 		return nil, err
 	}
 	return response.Messages, nil
 }
 
-func (w *StatelessWrapperImpl) CallReturningFullResponse(cxAuth string, metaData *message.MetaData, history []message.Message, newMessages []message.Message) (*message.ChatResponse, error) {
+func (w *StatelessWrapperImpl) SecureCallReturningFullResponse(
+	cxAuth string, metaData *message.MetaData, history []message.Message, newMessages []message.Message) (*message.ChatResponse, error) {
 	var conversation []message.Message
 	userMessageCount := 0
 	for _, m := range append(history, newMessages...) {
@@ -86,7 +90,7 @@ func (w *StatelessWrapperImpl) CallReturningFullResponse(cxAuth string, metaData
 
 	for _, c := range response.Choices {
 		if c.FinishReason == internal.FinishReasonLength {
-			return w.CallReturningFullResponse(cxAuth, metaData, history[w.dropLen:], newMessages)
+			return w.SecureCallReturningFullResponse(cxAuth, metaData, history[w.dropLen:], newMessages)
 		}
 	}
 
