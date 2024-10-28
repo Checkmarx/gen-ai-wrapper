@@ -10,7 +10,10 @@ import (
 
 type StatefulWrapper interface {
 	GenerateId() uuid.UUID
-	SecureCall(cxAuth string, metaData *message.MetaData, historyID uuid.UUID, newMessages []message.Message) ([]message.Message, error)
+	SecureCall(
+		cxAuth string, metaData *message.MetaData, historyID uuid.UUID, newMessages []message.Message) ([]message.Message, error)
+	SecureCallReturningFullResponse(
+		cxAuth string, metaData *message.MetaData, historyID uuid.UUID, newMessages []message.Message) (*message.ChatResponse, error)
 	Call(historyID uuid.UUID, newMessages []message.Message) ([]message.Message, error)
 	SetupCall(setupMessages []message.Message)
 	MaskSecrets(fileContent string) (*maskedSecret.MaskedEntry, error)
@@ -80,6 +83,32 @@ func (w *StatefulWrapperImpl) SecureCall(cxAuth string, metaData *message.MetaDa
 
 func (w *StatefulWrapperImpl) Call(historyID uuid.UUID, newMessages []message.Message) ([]message.Message, error) {
 	return w.SecureCall("", nil, historyID, newMessages)
+}
+
+func (w *StatefulWrapperImpl) SecureCallReturningFullResponse(
+	cxAuth string, metaData *message.MetaData, historyID uuid.UUID, newMessages []message.Message) (*message.ChatResponse, error) {
+	var err error
+	var history []message.Message
+
+	history, err = w.connector.HistoryById(historyID)
+	if err != nil {
+		return nil, err
+	}
+
+	response, err := w.StatelessWrapper.SecureCallReturningFullResponse(cxAuth, metaData, history, newMessages)
+	if err != nil {
+		return nil, err
+	}
+
+	history = append(history, newMessages...)
+	history = append(history, response.Messages...)
+
+	err = w.connector.SaveHistory(historyID, history)
+	if err != nil {
+		return nil, err
+	}
+
+	return response, nil
 }
 
 func (w *StatefulWrapperImpl) MaskSecrets(fileContent string) (*maskedSecret.MaskedEntry, error) {

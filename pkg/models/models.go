@@ -1,7 +1,10 @@
 package models
 
 const (
+	GPT4o              = "gpt-4o"
+	GPT4oMini          = "gpt-4o-mini"
 	GPT4               = "gpt-4"
+	GPT4Turbo          = "gpt-4-turbo"
 	GPT432K            = "gpt-4-32k"
 	GPT432K0314        = "gpt-4-32k-0314"
 	GPT40314           = "gpt-4-0314"
