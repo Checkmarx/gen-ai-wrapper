@@ -1,6 +1,8 @@
 package models
 
 const (
+	O1                 = "o1"
+	O1Mini             = "o1-mini"
 	GPT4o              = "gpt-4o"
 	GPT4oMini          = "gpt-4o-mini"
 	GPT4               = "gpt-4"
@@ -13,5 +15,5 @@ const (
 	GPT3TextDavinci001 = "text-davinci-001"
 	GPT3TextDavinci002 = "text-davinci-002"
 	GPT3TextDavinci003 = "text-davinci-003"
-	DefaultModel       = GPT4
+	DefaultModel       = GPT4o
 )
