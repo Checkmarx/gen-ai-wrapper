@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/Checkmarx/gen-ai-wrapper/pkg/connector"
 	"github.com/Checkmarx/gen-ai-wrapper/pkg/message"
+	"github.com/Checkmarx/gen-ai-wrapper/pkg/models"
 	"github.com/Checkmarx/gen-ai-wrapper/pkg/role"
 	"github.com/Checkmarx/gen-ai-wrapper/pkg/wrapper"
 	"github.com/google/uuid"
@@ -19,11 +20,12 @@ Usage: chat [-s <system-prompt>] -u <user-prompt> [options]
    or: chat -id <conversation-id> -u <user-prompt> [options]
 
 Options
-   -s, --system <system-prompt>  system prompt string
+   -s, --system <system-prompt>  system (or developer) prompt string
    -u, --user <user-prompt>      user prompt string
    -id <conversation-id>         chat conversation ID
    -ai <ai-server>               AI server to use. Options: {OpenAI (default), CxOne}
-   -f, --full-response           return full response from GPT
+   -m, --model <model>           model to use. Options: {gpt-4o (default), gpt-4, o1, o1-mini, ...}
+   -f, --full-response           return full response from AI
    -h, --help                    show help
 `
 
@@ -42,6 +44,9 @@ func main() {
 	flag.StringVar(&conversationId, "id", "", "")
 	var aiServer string
 	flag.StringVar(&aiServer, "ai", "OpenAI", "")
+	var model string
+	flag.StringVar(&model, "model", "gpt-4o", "")
+	flag.StringVar(&model, "m", "gpt-4o", "")
 
 	var fullResponse bool
 	flag.BoolVar(&fullResponse, "full-response", false, "")
@@ -79,17 +84,17 @@ func main() {
 
 	fmt.Printf("%s:\n", conversationId)
 
-	err = CallAIandPrintResponse(aiServer, systemPrompt, userPrompt, id, fullResponse)
+	err = CallAIandPrintResponse(aiServer, model, systemPrompt, userPrompt, id, fullResponse)
 	if err != nil {
-		fmt.Printf("Error '%v' calling GPT\n", err)
+		fmt.Printf("Error '%v' calling AI\n", err)
 		os.Exit(1)
 	}
 
 }
 
-func CallAIandPrintResponse(aiServer, systemPrompt, userPrompt string, chatId uuid.UUID, fullResponse bool) error {
+func CallAIandPrintResponse(aiServer, model, systemPrompt, userPrompt string, chatId uuid.UUID, fullResponse bool) error {
 
-	aiKey, err := getAIAccessKey(aiServer)
+	aiKey, err := getAIAccessKey(aiServer, model)
 	if err != nil {
 		return err
 	}
@@ -99,20 +104,12 @@ func CallAIandPrintResponse(aiServer, systemPrompt, userPrompt string, chatId uu
 	}
 
 	statefulWrapper, err := wrapper.NewStatefulWrapperNew(
-		connector.NewFileSystemConnector(""), aiEndpoint, aiKey, "gpt-4o", 4, 0)
+		connector.NewFileSystemConnector(""), aiEndpoint, aiKey, model, 4, 0)
 	if err != nil {
-		return fmt.Errorf("error creating GPT client: %v", err)
+		return fmt.Errorf("error creating '%s' AI client: %v", aiServer, err)
 	}
 
-	var newMessages []message.Message
-	newMessages = append(newMessages, message.Message{
-		Role:    role.System,
-		Content: systemPrompt,
-	})
-	newMessages = append(newMessages, message.Message{
-		Role:    role.User,
-		Content: userPrompt,
-	})
+	newMessages := GetMessages(model, systemPrompt, userPrompt)
 
 	if fullResponse {
 		response, err := statefulWrapper.SecureCallReturningFullResponse("", nil, chatId, newMessages)
@@ -130,9 +127,30 @@ func CallAIandPrintResponse(aiServer, systemPrompt, userPrompt string, chatId uu
 	return nil
 }
 
-func getAIAccessKey(aiServer string) (string, error) {
+func GetMessages(model, systemPrompt, userPrompt string) []message.Message {
+	var newMessages []message.Message
+	if !strings.HasPrefix(model, "o1-") {
+		r := role.System
+		if model == models.O1 {
+			r = role.Developer
+		}
+		newMessages = append(newMessages, message.Message{
+			Role:    r,
+			Content: systemPrompt,
+		})
+	} else {
+		userPrompt = systemPrompt + "\n" + userPrompt
+	}
+	newMessages = append(newMessages, message.Message{
+		Role:    role.User,
+		Content: userPrompt,
+	})
+	return newMessages
+}
+
+func getAIAccessKey(aiServer, model string) (string, error) {
 	if strings.EqualFold(aiServer, "OpenAI") {
-		accessKey, err := GetOpenAIAccessKey()
+		accessKey, err := GetOpenAIAccessKey(model)
 		if err != nil {
 			return "", fmt.Errorf("error getting OpenAI API key: %v", err)
 		}

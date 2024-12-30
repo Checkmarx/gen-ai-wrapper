@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 )
 
 const (
@@ -13,13 +14,13 @@ const (
 	OpenAIApiKey        = "OPENAI_API_KEY"
 )
 
-func GetOpenAIAccessKey() (string, error) {
+func GetOpenAIAccessKey(model string) (string, error) {
 	apiKey, err := GetEnvKeyValue(OpenAIApiKey)
 	if err != nil {
 		return "", err
 	}
 
-	if err := isValidAIApiKey(apiKey); err != nil {
+	if err := isValidAIApiKey(apiKey, model); err != nil {
 		return "", err
 	}
 	return apiKey, nil
@@ -57,12 +58,12 @@ type ErrorMessage struct {
 	} `json:"error"`
 }
 
-func isValidAIApiKey(apiKey string) error {
+func isValidAIApiKey(apiKey, model string) error {
 	enginesUrl, err := GetEnvKeyValue(OpenAIEnginesUrl)
 	if err != nil {
 		return err
 	}
-	url := fmt.Sprintf("%s/gpt-4o", enginesUrl)
+	url := fmt.Sprintf("%s/%s", enginesUrl, model)
 	request, _ := http.NewRequest("GET", url, nil)
 
 	request.Header.Set("Content-Type", "application/json")
@@ -79,7 +80,7 @@ func isValidAIApiKey(apiKey string) error {
 
 		err := json.Unmarshal([]byte(body), &errMsg)
 		if err == nil {
-			return fmt.Errorf("OpenAI API key does not support GPT-4o: %s", errMsg.Error.Message)
+			return fmt.Errorf("OpenAI API key does not support '%s': '%s'", model, errMsg.Error.Message)
 		} else {
 			return err
 		}
@@ -90,10 +91,10 @@ func isValidAIApiKey(apiKey string) error {
 			return err
 		} else if err := json.Unmarshal(body, &engineInfo); err != nil {
 			return err
-		} else if engineInfo.ID == "gpt-4o" {
+		} else if strings.EqualFold(engineInfo.ID, model) {
 			return nil
 		} else {
-			return fmt.Errorf("GPT-4o is inaccessible with the given API Key")
+			return fmt.Errorf("model '%s' is inaccessible with the given API Key", model)
 		}
 	}
 }
