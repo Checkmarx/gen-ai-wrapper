@@ -3,9 +3,9 @@ package internal
 import (
 	"errors"
 	"fmt"
+
 	"github.com/Checkmarx/gen-ai-wrapper/pkg/message"
 	"github.com/Checkmarx/gen-ai-wrapper/pkg/role"
-	"net/url"
 )
 
 // const gptByAzure = "https://cxgpt4.openai.azure.com/openai/deployments/gpt-4/chat/completions?api-version=2023-05-15"
@@ -51,14 +51,12 @@ type Wrapper interface {
 }
 
 func NewWrapperFactory(endPoint, apiKey string, dropLen int) (Wrapper, error) {
-	endPointURL, err := url.Parse(endPoint)
-	if err != nil {
-		return nil, err
-	}
-	if endPointURL.Scheme == "http" || endPointURL.Scheme == "https" {
-		return NewWrapperImpl(endPoint, apiKey, dropLen), nil
-	}
-	return NewWrapperInternalImpl(endPoint, dropLen)
+	return NewWrapperImpl(endPoint, apiKey, dropLen), nil
+}
+
+// NewLitellmWrapperFactory creates a new litellm wrapper factory
+func NewLitellmWrapperFactory(endPoint, apiKey string, dropLen int) (Wrapper, error) {
+	return NewLitellmWrapper(endPoint, apiKey, dropLen), nil
 }
 
 func fromResponse(statusCode int, e *ErrorResponse) error {
