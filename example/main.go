@@ -3,14 +3,15 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/Checkmarx/gen-ai-wrapper/pkg/connector"
+	"os"
+	"strings"
+
+	"github.com/Checkmarx/gen-ai-wrapper/internal"
 	"github.com/Checkmarx/gen-ai-wrapper/pkg/message"
 	"github.com/Checkmarx/gen-ai-wrapper/pkg/models"
 	"github.com/Checkmarx/gen-ai-wrapper/pkg/role"
 	"github.com/Checkmarx/gen-ai-wrapper/pkg/wrapper"
 	"github.com/google/uuid"
-	"os"
-	"strings"
 )
 
 const usage = `
@@ -23,9 +24,8 @@ Options
    -s, --system <system-prompt>  system (or developer) prompt string
    -u, --user <user-prompt>      user prompt string
    -id <conversation-id>         chat conversation ID
-   -ai <ai-server>               AI server to use. Options: {OpenAI (default), CxOne}
-   -m, --model <model>           model to use. Options: {gpt-4o (default), gpt-4, o1, o1-mini, ...}
-   -f, --full-response           return full response from AI
+   -ai <ai-server>               AI server to use. Options: {OpenAI (default), CxOne, LiteLLM}
+   -m, --model <model>           model to use. Options: {gpt-4o (default), gpt-4, o1, o1-mini, claude-3-5-sonnet-20241022, ...}
    -h, --help                    show help
 `
 
@@ -103,26 +103,46 @@ func CallAIandPrintResponse(aiServer, model, systemPrompt, userPrompt string, ch
 		return err
 	}
 
-	statefulWrapper, err := wrapper.NewStatefulWrapperNew(
-		connector.NewFileSystemConnector(""), aiEndpoint, aiKey, model, 4, 0)
+	var litellmWrapper wrapper.LitellmWrapper
+
+	// Use litellm wrapper for litellm server
+	if strings.EqualFold(aiServer, "LiteLLM") {
+		litellmWrapper, err = wrapper.NewLitellmWrapper(aiEndpoint, aiKey, model)
+	} else {
+		// For other servers, we'll need to implement or use existing wrappers
+		return fmt.Errorf("unsupported AI server: %s", aiServer)
+	}
+
 	if err != nil {
 		return fmt.Errorf("error creating '%s' AI client: %v", aiServer, err)
 	}
 
 	newMessages := GetMessages(model, systemPrompt, userPrompt)
 
+	// Create proper metadata for the request
+	metaData := &message.MetaData{
+		RequestID: "example-request-" + chatId.String(),
+		TenantID:  "default-tenant",
+		UserAgent: "gen-ai-wrapper-example",
+		Feature:   "chat-completion",
+	}
+
+	// Create the request
+	request := &internal.ChatCompletionRequest{
+		Model:    model,
+		Messages: newMessages,
+	}
+
+	// Make the call
+	response, err := litellmWrapper.Call(aiKey, metaData, request)
+	if err != nil {
+		return fmt.Errorf("error calling litellm: %v", err)
+	}
+
 	if fullResponse {
-		response, err := statefulWrapper.SecureCallReturningFullResponse("", nil, chatId, newMessages)
-		if err != nil {
-			return fmt.Errorf("error calling GPT: %v", err)
-		}
 		fmt.Printf("%+v\n", response)
 	} else {
-		response, err := statefulWrapper.Call(chatId, newMessages)
-		if err != nil {
-			return fmt.Errorf("error calling GPT: %v", err)
-		}
-		fmt.Println(getMessageContents(response))
+		fmt.Println(response.Choices[0].Message.Content)
 	}
 	return nil
 }
@@ -156,7 +176,7 @@ func getAIAccessKey(aiServer, model string) (string, error) {
 		}
 		return accessKey, nil
 	}
-	if strings.EqualFold(aiServer, "CxOne") {
+	if strings.EqualFold(aiServer, "CxOne") || strings.EqualFold(aiServer, "LiteLLM") {
 		accessKey, err := GetCxOneAIAccessKey()
 		if err != nil {
 			return "", fmt.Errorf("error getting CxOne AI API key: %v", err)
@@ -174,7 +194,7 @@ func getAIEndpoint(aiServer string) (string, error) {
 		}
 		return aiEndpoint, nil
 	}
-	if strings.EqualFold(aiServer, "CxOne") {
+	if strings.EqualFold(aiServer, "CxOne") || strings.EqualFold(aiServer, "LiteLLM") {
 		aiEndpoint, err := GetCxOneAIEndpoint()
 		if err != nil {
 			return "", fmt.Errorf("error getting CxOne AI endpoint: %v", err)
