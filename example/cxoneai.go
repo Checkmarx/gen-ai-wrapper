@@ -50,9 +50,14 @@ func getOAuthAccessToken() (string, error) {
 	}
 
 	data := url.Values{}
-	data.Set("grant_type", "client_credentials")
+	data.Set("grant_type", "refresh_token")
 	data.Set("client_id", clientID)
-	data.Set("client_secret", clientSecret)
+	data.Set("refresh_token", clientSecret)
+
+	//Use this if you have client credentials
+	//data.Set("grant_type", "client_credentials")
+	//data.Set("client_id", clientID)
+	//data.Set("client_secret", clientSecret)
 
 	req, err := http.NewRequest("POST", openIDURL, strings.NewReader(data.Encode()))
 	if err != nil {

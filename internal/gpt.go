@@ -55,8 +55,8 @@ func NewWrapperFactory(endPoint, apiKey string, dropLen int) (Wrapper, error) {
 }
 
 // NewLitellmWrapperFactory creates a new litellm wrapper factory
-func NewLitellmWrapperFactory(endPoint, apiKey string, dropLen int) (Wrapper, error) {
-	return NewLitellmWrapper(endPoint, apiKey, dropLen), nil
+func NewLitellmWrapperFactory(endPoint, apiKey string) (Wrapper, error) {
+	return NewLitellmWrapper(endPoint, apiKey), nil
 }
 
 func fromResponse(statusCode int, e *ErrorResponse) error {

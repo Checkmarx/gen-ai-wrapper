@@ -25,7 +25,7 @@ func NewLitellmWrapper(endPoint, apiKey, model string) (LitellmWrapper, error) {
 		model = models.DefaultModel
 	}
 
-	wrapper := internal.NewLitellmWrapper(endPoint, apiKey, 0)
+	wrapper := internal.NewLitellmWrapper(endPoint, apiKey)
 
 	return &LitellmWrapperImpl{
 		wrapper: wrapper,

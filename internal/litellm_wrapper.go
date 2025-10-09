@@ -14,15 +14,13 @@ import (
 type LitellmWrapper struct {
 	endPoint string
 	apiKey   string
-	dropLen  int
 }
 
 // NewLitellmWrapper creates a new litellm wrapper instance
-func NewLitellmWrapper(endPoint, apiKey string, dropLen int) Wrapper {
+func NewLitellmWrapper(endPoint, apiKey string) Wrapper {
 	return &LitellmWrapper{
 		endPoint: endPoint,
 		apiKey:   apiKey,
-		dropLen:  dropLen,
 	}
 }
 
