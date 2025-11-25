@@ -9,9 +9,6 @@ import (
 	"github.com/Checkmarx/gen-ai-wrapper/pkg/role"
 )
 
-// const gptByAzure = "https://cxgpt4.openai.azure.com/openai/deployments/gpt-4/chat/completions?api-version=2023-05-15"
-// const gptByOpenAi = "https://api.openai.com/v1/chat/completions"
-
 type ChatCompletionRequest struct {
 	Model    string            `json:"model,omitempty"`
 	Messages []message.Message `json:"messages"`
