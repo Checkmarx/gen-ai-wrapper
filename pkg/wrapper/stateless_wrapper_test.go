@@ -10,6 +10,9 @@ import (
 )
 
 func TestCallGPT(t *testing.T) {
+	if skipTests {
+		t.Skip("Skipping test: .env file not found")
+	}
 	var history []message.Message
 	var response []message.Message
 	wrapper, err := NewStatelessWrapper(OpenAiEndPoint, apikey, models.GPT3Dot5Turbo, 4, 0)
@@ -49,6 +52,9 @@ func TestCallGPT(t *testing.T) {
 }
 
 func TestCallEmptyApiKey(t *testing.T) {
+	if skipTests {
+		t.Skip("Skipping test: .env file not found")
+	}
 	wrapper, err := NewStatelessWrapper(OpenAiEndPoint, apikey, models.GPT3Dot5Turbo, 4, 0)
 	if err != nil {
 		t.Fatal(err)
