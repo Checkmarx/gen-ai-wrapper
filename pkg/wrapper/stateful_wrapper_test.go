@@ -17,6 +17,9 @@ type Config struct {
 }
 
 func TestCallGPT_FS(t *testing.T) {
+	if skipTests {
+		t.Skip("Skipping test: .env file not found")
+	}
 	var history []message.Message
 	wrapper := NewStatefulWrapper(connector.NewFileSystemConnector(""), apikey, models.GPT3Dot5Turbo, 4, 0)
 
@@ -57,6 +60,9 @@ func TestCallGPT_FS(t *testing.T) {
 }
 
 func TestCallGPT_ToProxy(t *testing.T) {
+	if skipTests {
+		t.Skip("Skipping test: .env file not found")
+	}
 	var history []message.Message
 	wrapper := NewStatefulWrapper(connector.NewFileSystemConnector(""), apikey, models.GPT4, 4, 0)
 	id := wrapper.GenerateId()
@@ -96,6 +102,9 @@ func TestCallGPT_ToProxy(t *testing.T) {
 }
 
 func TestMaskSecrets(t *testing.T) {
+	if skipTests {
+		t.Skip("Skipping test: .env file not found")
+	}
 	wrapper := NewStatefulWrapper(connector.NewFileSystemConnector(""), apikey, models.GPT3Dot5Turbo, 4, 0)
 	id := wrapper.GenerateId()
 	t.Log(id)
