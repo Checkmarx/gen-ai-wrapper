@@ -2,10 +2,12 @@ package wrapper
 
 import (
 	"github.com/spf13/viper"
+	"os"
 	"testing"
 )
 
 var apikey string
+var skipTests bool
 
 func TestMain(m *testing.M) {
 	cfg := Config{}
@@ -13,12 +15,15 @@ func TestMain(m *testing.M) {
 	viper.AddConfigPath(".")
 	viper.SetConfigFile(".env")
 	if err := viper.ReadInConfig(); err != nil {
-		panic("Error reading env file")
+		// Skip tests if .env file is not found
+		skipTests = true
+		os.Exit(m.Run())
 	}
 	if err := viper.Unmarshal(&cfg); err != nil {
 		panic(err)
 	}
 	apikey = cfg.ApiKey
+	os.Exit(m.Run())
 }
 
 const systemInput = `You are the Checkmarx AI Guided Remediation bot who can answer technical questions related to the results of Infrastructure as Code Security.

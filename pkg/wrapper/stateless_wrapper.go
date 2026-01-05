@@ -7,7 +7,6 @@ import (
 	"github.com/Checkmarx/gen-ai-wrapper/internal/secrets"
 	"github.com/Checkmarx/gen-ai-wrapper/pkg/maskedSecret"
 	"github.com/Checkmarx/gen-ai-wrapper/pkg/message"
-	"github.com/Checkmarx/gen-ai-wrapper/pkg/models"
 	"github.com/Checkmarx/gen-ai-wrapper/pkg/role"
 )
 
@@ -31,9 +30,6 @@ type StatelessWrapperImpl struct {
 }
 
 func NewStatelessWrapper(endPoint, apiKey, model string, dropLen, limit int) (StatelessWrapper, error) {
-	if model == "" {
-		model = models.DefaultModel
-	}
 	wrapper, err := internal.NewWrapperFactory(endPoint, apiKey, dropLen)
 	if err != nil {
 		return nil, err
