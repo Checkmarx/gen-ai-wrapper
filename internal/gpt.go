@@ -3,7 +3,6 @@ package internal
 import (
 	"errors"
 	"fmt"
-	"net/url"
 
 	"github.com/Checkmarx/gen-ai-wrapper/pkg/message"
 	"github.com/Checkmarx/gen-ai-wrapper/pkg/role"
@@ -49,14 +48,12 @@ type Wrapper interface {
 }
 
 func NewWrapperFactory(endPoint, apiKey string, dropLen int) (Wrapper, error) {
-	endPointURL, err := url.Parse(endPoint)
-	if err != nil {
-		return nil, err
-	}
-	if endPointURL.Scheme == "http" || endPointURL.Scheme == "https" {
-		return NewWrapperImpl(endPoint, apiKey, dropLen), nil
-	}
-	return NewWrapperInternalImpl(endPoint, dropLen)
+	return NewWrapperImpl(endPoint, apiKey, dropLen), nil
+}
+
+// NewLitellmWrapperFactory creates a new litellm wrapper factory
+func NewLitellmWrapperFactory(endPoint, apiKey string) (Wrapper, error) {
+	return NewLitellmWrapper(endPoint, apiKey), nil
 }
 
 func fromResponse(statusCode int, e *ErrorResponse) error {

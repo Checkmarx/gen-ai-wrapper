@@ -15,5 +15,8 @@ const (
 	GPT3TextDavinci001 = "text-davinci-001"
 	GPT3TextDavinci002 = "text-davinci-002"
 	GPT3TextDavinci003 = "text-davinci-003"
+	ClaudeSonnet37     = "claude-sonnet-3-7"
+	ClaudeSonnet4      = "claude-sonnet-4"
+	ClaudeSonnet45     = "claude-sonnet-4-5"
 	DefaultModel       = GPT4o
 )
