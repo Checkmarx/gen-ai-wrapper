@@ -121,7 +121,7 @@ func CallAIandPrintResponse(aiServer, model, systemPrompt, userPrompt string, ch
 
 	// Create proper metadata for the request
 	metaData := &message.MetaData{
-		RequestID: "example-request-" + chatId.String(),
+		RequestID: chatId.String(),
 		TenantID:  "default-tenant",
 		UserAgent: "gen-ai-wrapper-example",
 		Feature:   "chat-completion",

@@ -3,7 +3,6 @@ package internal
 import (
 	"errors"
 	"fmt"
-	"net/url"
 
 	"github.com/Checkmarx/gen-ai-wrapper/pkg/message"
 	"github.com/Checkmarx/gen-ai-wrapper/pkg/role"
