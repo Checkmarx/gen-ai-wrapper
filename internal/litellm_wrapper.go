@@ -15,7 +15,9 @@ import (
 	"github.com/Checkmarx/gen-ai-wrapper/pkg/message"
 )
 
-var httpClient = &http.Client{Timeout: 120 * time.Second}
+const httpTimeout = 120 * time.Second
+
+var httpClient = &http.Client{Timeout: httpTimeout}
 
 // LitellmWrapper implements the Wrapper interface for litellm AI proxy service
 type LitellmWrapper struct {
@@ -38,65 +40,51 @@ func (w *LitellmWrapper) SetupCall(messages []message.Message) {
 
 // validateEndpoint checks the endpoint URL to prevent SSRF attacks.
 // Only https scheme is allowed and private/loopback hosts are rejected.
-func validateEndpoint(endpoint string) error {
+func validateEndpoint(endpoint string) (*url.URL, error) {
 	parsed, err := url.Parse(endpoint)
 	if err != nil {
-		return fmt.Errorf("invalid endpoint URL: %w", err)
+		return nil, fmt.Errorf("invalid endpoint URL: %w", err)
 	}
 	if parsed.Scheme != "https" {
-		return fmt.Errorf("endpoint must use https scheme, got: %q", parsed.Scheme)
+		return nil, fmt.Errorf("endpoint must use https scheme, got: %q", parsed.Scheme)
 	}
 	host := parsed.Hostname()
 	if host == "" {
-		return fmt.Errorf("endpoint URL has no host")
+		return nil, fmt.Errorf("endpoint URL has no host")
 	}
 	ip := net.ParseIP(host)
 	if ip != nil {
 		if ip.IsLoopback() || ip.IsPrivate() || ip.IsUnspecified() || ip.IsLinkLocalUnicast() {
-			return fmt.Errorf("endpoint host resolves to a disallowed address: %s", host)
+			return nil, fmt.Errorf("endpoint host resolves to a disallowed address: %s", host)
 		}
 	} else {
 		lower := strings.ToLower(host)
 		if lower == "localhost" || strings.HasSuffix(lower, ".local") || strings.HasSuffix(lower, ".internal") {
-			return fmt.Errorf("endpoint host is a disallowed internal address: %s", host)
+			return nil, fmt.Errorf("endpoint host is a disallowed internal address: %s", host)
 		}
 	}
-	return nil
+	return parsed, nil
 }
 
 // Call makes a request to the litellm AI proxy service
 func (w *LitellmWrapper) Call(cxAuth string, metaData *message.MetaData, request *ChatCompletionRequest) (*ChatCompletionResponse, error) {
-	if err := validateEndpoint(w.endPoint); err != nil {
-		return nil, err
-	}
-
-	req, err := w.prepareRequest(cxAuth, metaData, request)
+	// Validate and parse the endpoint URL before use (SSRF prevention)
+	parsedURL, err := validateEndpoint(w.endPoint)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	return w.handleResponse(resp)
-}
-
-// prepareRequest creates the HTTP request with an explicit timeout context
-func (w *LitellmWrapper) prepareRequest(cxAuth string, metaData *message.MetaData, requestBody *ChatCompletionRequest) (*http.Request, error) {
-	jsonData, err := json.Marshal(requestBody)
+	jsonData, err := json.Marshal(request)
 	if err != nil {
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-	_ = cancel // caller's defer resp.Body.Close triggers GC; context is bounded by the client timeout
+	// Use an explicit timeout context so the deadline is visible at the call site
+	ctx, cancel := context.WithTimeout(context.Background(), httpTimeout)
+	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, w.endPoint, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, parsedURL.String(), bytes.NewBuffer(jsonData))
 	if err != nil {
-		cancel()
 		return nil, err
 	}
 
@@ -107,40 +95,57 @@ func (w *LitellmWrapper) prepareRequest(cxAuth string, metaData *message.MetaDat
 	req.Header.Set("User-Agent", metaData.UserAgent)
 	req.Header.Set("X-Feature", metaData.Feature)
 
-	return req, nil
+	client := &http.Client{Timeout: httpTimeout}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// Validate HTTP status code before processing the body
+	if resp.StatusCode != http.StatusOK {
+		return nil, w.handleErrorResponse(resp)
+	}
+
+	return w.handleSuccessResponse(resp)
 }
 
-// handleResponse processes the HTTP response
-func (w *LitellmWrapper) handleResponse(resp *http.Response) (*ChatCompletionResponse, error) {
+// handleSuccessResponse decodes a 200 OK response
+func (w *LitellmWrapper) handleSuccessResponse(resp *http.Response) (*ChatCompletionResponse, error) {
 	bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, 10*1024*1024))
 	if err != nil {
 		return nil, err
 	}
-
 	if len(bodyBytes) == 0 {
 		return nil, fmt.Errorf("HTTP %d: empty response body", resp.StatusCode)
 	}
-
-	if resp.StatusCode == http.StatusOK {
-		if !json.Valid(bodyBytes) {
-			return nil, fmt.Errorf("HTTP %d: response body is not valid JSON", resp.StatusCode)
-		}
-		var responseBody ChatCompletionResponse
-		if err := json.Unmarshal(bodyBytes, &responseBody); err != nil {
-			return nil, fmt.Errorf("failed to decode response: %w", err)
-		}
-		return &responseBody, nil
-	}
-
 	if !json.Valid(bodyBytes) {
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(bodyBytes))
+		return nil, fmt.Errorf("HTTP %d: response body is not valid JSON", resp.StatusCode)
+	}
+	var responseBody ChatCompletionResponse
+	if err := json.Unmarshal(bodyBytes, &responseBody); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	return &responseBody, nil
+}
+
+// handleErrorResponse decodes a non-200 response into an error
+func (w *LitellmWrapper) handleErrorResponse(resp *http.Response) error {
+	bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, 10*1024*1024))
+	if err != nil {
+		return fmt.Errorf("HTTP %d: failed to read error body: %w", resp.StatusCode, err)
+	}
+	if len(bodyBytes) == 0 {
+		return fmt.Errorf("HTTP %d: empty error response body", resp.StatusCode)
+	}
+	if !json.Valid(bodyBytes) {
+		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(bodyBytes))
 	}
 	var errorResponse ErrorResponse
 	if err := json.Unmarshal(bodyBytes, &errorResponse); err != nil {
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(bodyBytes))
+		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(bodyBytes))
 	}
-
-	return nil, fromResponse(resp.StatusCode, &errorResponse)
+	return fromResponse(resp.StatusCode, &errorResponse)
 }
 
 // Close closes the wrapper (no-op for HTTP client)
