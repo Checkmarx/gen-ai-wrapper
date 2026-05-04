@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/Checkmarx/gen-ai-wrapper/pkg/message"
 )
+
+var httpClient = &http.Client{Timeout: 120 * time.Second}
 
 // LitellmWrapper implements the Wrapper interface for litellm AI proxy service
 type LitellmWrapper struct {
@@ -38,7 +41,7 @@ func (w *LitellmWrapper) Call(cxAuth string, metaData *message.MetaData, request
 	}
 
 	// Make the HTTP request
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +78,7 @@ func (w *LitellmWrapper) prepareRequest(cxAuth string, metaData *message.MetaDat
 
 // handleResponse processes the HTTP response
 func (w *LitellmWrapper) handleResponse(resp *http.Response) (*ChatCompletionResponse, error) {
-	bodyBytes, err := io.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, 10*1024*1024))
 	if err != nil {
 		return nil, err
 	}

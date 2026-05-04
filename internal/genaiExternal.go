@@ -49,7 +49,7 @@ func (w *WrapperImpl) Call(cxAuth string, metaData *message.MetaData, request *C
 		return nil, err
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +87,7 @@ func (w *WrapperImpl) prepareRequest(cxAuth string, metaData *message.MetaData, 
 
 func (w *WrapperImpl) handleGptResponse(accessToken string, metaData *message.MetaData, requestBody *ChatCompletionRequest, resp *http.Response) (*ChatCompletionResponse, error) {
 	var err error
-	bodyBytes, err := io.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, 10*1024*1024))
 	if err != nil {
 		return nil, err
 	}

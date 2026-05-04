@@ -92,7 +92,7 @@ func (w FileSystemConnector) writeHistory(filepath string, bytes []byte) error {
 		}
 	}
 
-	return os.WriteFile(filepath, bytes, 0644)
+	return os.WriteFile(filepath, bytes, 0600)
 }
 
 func (w FileSystemConnector) getFilePathById(id uuid.UUID) string {
