@@ -1,0 +1,32 @@
+{
+  "REST Calls without Timeout:3030:internal/genaiExternal.go": {
+    "files": [
+      {
+        "path": "internal/genaiExternal.go",
+        "active": true,
+        "line": 71
+      }
+    ],
+    "type": "Asca",
+    "PackageName": "REST Calls without Timeout",
+    "ruleId": 3030,
+    "severity": "High",
+    "description": "REST calls without a timeout can lead to hanging requests, reducing application responsiveness and risking resource exhaustion. Setting an explicit timeout is essential for ensuring timely failure handling and better resource management.",
+    "dateAdded": "2026-05-04T10:55:54.999Z"
+  },
+  "Potential SSRF:3018:internal/genaiExternal.go": {
+    "files": [
+      {
+        "path": "internal/genaiExternal.go",
+        "active": true,
+        "line": 52
+      }
+    ],
+    "type": "Asca",
+    "PackageName": "Potential SSRF",
+    "ruleId": 3018,
+    "severity": "Critical",
+    "description": "Server-Side Request Forgery (SSRF) vulnerabilities arise when applications allow users to send requests to internal services or external URLs without adequate validation. This oversight can enable attackers to manipulate requests, potentially leading to unauthorized access or data exposure. Properly validating URLs before making requests is essential to prevent these security risks and ensure that only safe, intended URLs are accessed.",
+    "dateAdded": "2026-05-04T10:56:15.100Z"
+  }
+}
