@@ -2,8 +2,10 @@ package connector
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
-	"path"
+	"path/filepath"
+	"strings"
 
 	"github.com/Checkmarx/gen-ai-wrapper/pkg/message"
 
@@ -26,8 +28,10 @@ func NewFileSystemConnector(baseDir string) Connector {
 }
 
 func (w FileSystemConnector) HistoryById(id uuid.UUID) ([]message.Message, error) {
-	var err error
-	filePath := w.getFilePathById(id)
+	filePath, err := w.getFilePathById(id)
+	if err != nil {
+		return nil, err
+	}
 
 	_, err = os.Stat(filePath)
 	if err != nil {
@@ -37,11 +41,19 @@ func (w FileSystemConnector) HistoryById(id uuid.UUID) ([]message.Message, error
 		return nil, err
 	}
 
+	filePath = filepath.Clean(filePath)
 	bytes, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
 	}
 
+	if len(bytes) == 0 {
+		return nil, nil
+	}
+
+	if !json.Valid(bytes) {
+		return nil, fmt.Errorf("invalid JSON data in history file")
+	}
 	var history []message.Message
 	err = json.Unmarshal(bytes, &history)
 	if err != nil {
@@ -52,9 +64,12 @@ func (w FileSystemConnector) HistoryById(id uuid.UUID) ([]message.Message, error
 }
 
 func (w FileSystemConnector) DeleteHistory(id uuid.UUID) error {
-	filePath := w.getFilePathById(id)
+	filePath, err := w.getFilePathById(id)
+	if err != nil {
+		return err
+	}
 
-	_, err := os.Stat(filePath)
+	_, err = os.Stat(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -62,12 +77,22 @@ func (w FileSystemConnector) DeleteHistory(id uuid.UUID) error {
 		return err
 	}
 
-	return os.Remove(filePath)
+	filePath = filepath.Clean(filePath)
+	err = os.Remove(filePath)
+	if err != nil {
+		if os.IsPermission(err) {
+			return fmt.Errorf("permission denied when deleting history file: %w", err)
+		}
+		return err
+	}
+	return nil
 }
 
 func (w FileSystemConnector) SaveHistory(id uuid.UUID, history []message.Message) error {
-	var err error
-	filePath := w.getFilePathById(id)
+	filePath, err := w.getFilePathById(id)
+	if err != nil {
+		return err
+	}
 
 	bytes, err := json.Marshal(history)
 	if err != nil {
@@ -77,13 +102,16 @@ func (w FileSystemConnector) SaveHistory(id uuid.UUID, history []message.Message
 	return w.writeHistory(filePath, bytes)
 }
 
-func (w FileSystemConnector) writeHistory(filepath string, bytes []byte) error {
-	var err error
+func (w FileSystemConnector) writeHistory(fp string, bytes []byte) error {
+	basePath, err := w.safeBasePath()
+	if err != nil {
+		return err
+	}
 
-	_, err = os.Stat(w.getBasePath())
+	_, err = os.Stat(basePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			err = os.Mkdir(w.getBasePath(), 0700)
+			err = os.Mkdir(basePath, 0700)
 			if err != nil {
 				return err
 			}
@@ -92,13 +120,32 @@ func (w FileSystemConnector) writeHistory(filepath string, bytes []byte) error {
 		}
 	}
 
-	return os.WriteFile(filepath, bytes, 0600)
+	fp = filepath.Clean(fp)
+	return os.WriteFile(fp, bytes, 0600)
 }
 
-func (w FileSystemConnector) getFilePathById(id uuid.UUID) string {
-	return path.Join(w.getBasePath(), id.String())
+func (w FileSystemConnector) getFilePathById(id uuid.UUID) (string, error) {
+	basePath, err := w.safeBasePath()
+	if err != nil {
+		return "", err
+	}
+	p := filepath.Join(basePath, id.String())
+	return w.validatePath(p, basePath)
 }
 
-func (w FileSystemConnector) getBasePath() string {
-	return path.Join(w.BaseDir, innerDir)
+func (w FileSystemConnector) safeBasePath() (string, error) {
+	p := filepath.Clean(filepath.Join(w.BaseDir, innerDir))
+	base := filepath.Clean(w.BaseDir)
+	if !strings.HasPrefix(p, base+string(filepath.Separator)) && p != base {
+		return "", fmt.Errorf("computed base path escapes allowed directory")
+	}
+	return p, nil
+}
+
+func (w FileSystemConnector) validatePath(p, basePath string) (string, error) {
+	clean := filepath.Clean(p)
+	if !strings.HasPrefix(clean, basePath+string(filepath.Separator)) && clean != basePath {
+		return "", fmt.Errorf("path traversal detected: path escapes allowed directory")
+	}
+	return clean, nil
 }
