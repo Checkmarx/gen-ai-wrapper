@@ -6,10 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
-	"net/url"
-	"strings"
 	"time"
 
 	"github.com/Checkmarx/gen-ai-wrapper/pkg/message"
@@ -38,42 +35,8 @@ func (w *LitellmWrapper) SetupCall(messages []message.Message) {
 	// No setup needed for litellm
 }
 
-// validateEndpoint checks the endpoint URL to prevent SSRF attacks.
-// Only https scheme is allowed and private/loopback hosts are rejected.
-func validateEndpoint(endpoint string) (*url.URL, error) {
-	parsed, err := url.Parse(endpoint)
-	if err != nil {
-		return nil, fmt.Errorf("invalid endpoint URL: %w", err)
-	}
-	if parsed.Scheme != "https" {
-		return nil, fmt.Errorf("endpoint must use https scheme, got: %q", parsed.Scheme)
-	}
-	host := parsed.Hostname()
-	if host == "" {
-		return nil, fmt.Errorf("endpoint URL has no host")
-	}
-	ip := net.ParseIP(host)
-	if ip != nil {
-		if ip.IsLoopback() || ip.IsPrivate() || ip.IsUnspecified() || ip.IsLinkLocalUnicast() {
-			return nil, fmt.Errorf("endpoint host resolves to a disallowed address: %s", host)
-		}
-	} else {
-		lower := strings.ToLower(host)
-		if lower == "localhost" || strings.HasSuffix(lower, ".local") || strings.HasSuffix(lower, ".internal") {
-			return nil, fmt.Errorf("endpoint host is a disallowed internal address: %s", host)
-		}
-	}
-	return parsed, nil
-}
-
 // Call makes a request to the litellm AI proxy service
 func (w *LitellmWrapper) Call(cxAuth string, metaData *message.MetaData, request *ChatCompletionRequest) (*ChatCompletionResponse, error) {
-	// Validate and parse the endpoint URL before use (SSRF prevention)
-	parsedURL, err := validateEndpoint(w.endPoint)
-	if err != nil {
-		return nil, err
-	}
-
 	jsonData, err := json.Marshal(request)
 	if err != nil {
 		return nil, err
@@ -83,7 +46,7 @@ func (w *LitellmWrapper) Call(cxAuth string, metaData *message.MetaData, request
 	ctx, cancel := context.WithTimeout(context.Background(), httpTimeout)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, parsedURL.String(), bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, w.endPoint, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}
