@@ -56,6 +56,9 @@ func (w *WrapperImpl) Call(cxAuth string, metaData *message.MetaData, request *C
 	defer func() {
 		_ = resp.Body.Close()
 	}()
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusFailedDependency {
+		return nil, fmt.Errorf("unexpected response status code: %d", resp.StatusCode)
+	}
 
 	return w.handleGptResponse(cxAuth, metaData, request, resp)
 }
@@ -92,6 +95,9 @@ func (w *WrapperImpl) handleGptResponse(accessToken string, metaData *message.Me
 		return nil, err
 	}
 	if resp.StatusCode == http.StatusOK {
+		if !json.Valid(bodyBytes) {
+			return nil, fmt.Errorf("HTTP %d: response body is not valid JSON", resp.StatusCode)
+		}
 		var responseBody = new(ChatCompletionResponse)
 		err = json.Unmarshal(bodyBytes, responseBody)
 		if err != nil {
@@ -100,6 +106,9 @@ func (w *WrapperImpl) handleGptResponse(accessToken string, metaData *message.Me
 		return responseBody, nil
 	}
 	if resp.StatusCode == http.StatusFailedDependency || metaData == nil {
+		if !json.Valid(bodyBytes) {
+			return nil, fmt.Errorf("HTTP %d: response body is not valid JSON", resp.StatusCode)
+		}
 		var errorResponse = new(ErrorResponse)
 		err = json.Unmarshal(bodyBytes, errorResponse)
 		if err != nil {
