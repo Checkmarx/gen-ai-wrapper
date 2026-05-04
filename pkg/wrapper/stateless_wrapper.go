@@ -86,6 +86,9 @@ func (w *StatelessWrapperImpl) SecureCallReturningFullResponse(
 
 	for _, c := range response.Choices {
 		if c.FinishReason == internal.FinishReasonLength {
+			if w.dropLen == 0 || w.dropLen >= len(history) {
+				return nil, errors.New("context length exceeded and history cannot be shortened further")
+			}
 			return w.SecureCallReturningFullResponse(cxAuth, metaData, history[w.dropLen:], newMessages)
 		}
 	}

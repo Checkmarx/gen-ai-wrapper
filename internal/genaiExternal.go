@@ -106,6 +106,9 @@ func (w *WrapperImpl) handleGptResponse(accessToken string, metaData *message.Me
 			return nil, err
 		}
 		if errorResponse.Error.Code == errorCodeMaxTokens {
+			if w.dropLen >= len(requestBody.Messages) {
+				return nil, fmt.Errorf("cannot drop %d messages from history of length %d", w.dropLen, len(requestBody.Messages))
+			}
 			return w.Call(accessToken, metaData, &ChatCompletionRequest{
 				Model:    requestBody.Model,
 				Messages: requestBody.Messages[w.dropLen:],
