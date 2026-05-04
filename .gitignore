@@ -10,6 +10,8 @@
 # But not these files...
 !/.gitignore
 
+!/.vscode/.checkmarxIgnored
+
 !*.go
 !go.sum
 !go.mod
