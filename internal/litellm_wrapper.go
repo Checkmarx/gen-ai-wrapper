@@ -12,7 +12,7 @@ import (
 	"github.com/Checkmarx/gen-ai-wrapper/pkg/message"
 )
 
-const httpTimeout = 120 * time.Second
+const httpTimeout = 360 * time.Second
 
 var httpClient = &http.Client{Timeout: httpTimeout}
 
