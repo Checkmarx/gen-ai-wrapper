@@ -56,7 +56,7 @@ func (w *WrapperImpl) Call(cxAuth string, metaData *message.MetaData, request *C
 	defer func() {
 		_ = resp.Body.Close()
 	}()
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusFailedDependency {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusFailedDependency && metaData != nil {
 		return nil, fmt.Errorf("unexpected response status code: %d", resp.StatusCode)
 	}
 
