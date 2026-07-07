@@ -11,6 +11,7 @@ require (
 )
 
 require (
+	github.com/go-jose/go-jose/v4 v4.1.4 // indirect; pinned to remediate CVE-2026-34986 (grpc pulls v4.1.3)
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	golang.org/x/crypto v0.52.0 // indirect; pinned to remediate CVE-2026-46595, CVE-2026-39829, CVE-2026-39835 (x/net pulls v0.51.0)
 )
