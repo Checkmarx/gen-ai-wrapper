@@ -49,13 +49,16 @@ func (w *WrapperImpl) Call(cxAuth string, metaData *message.MetaData, request *C
 		return nil, err
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
 		_ = resp.Body.Close()
 	}()
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusFailedDependency && metaData != nil {
+		return nil, fmt.Errorf("unexpected response status code: %d", resp.StatusCode)
+	}
 
 	return w.handleGptResponse(cxAuth, metaData, request, resp)
 }
@@ -87,11 +90,14 @@ func (w *WrapperImpl) prepareRequest(cxAuth string, metaData *message.MetaData, 
 
 func (w *WrapperImpl) handleGptResponse(accessToken string, metaData *message.MetaData, requestBody *ChatCompletionRequest, resp *http.Response) (*ChatCompletionResponse, error) {
 	var err error
-	bodyBytes, err := io.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, 10*1024*1024))
 	if err != nil {
 		return nil, err
 	}
 	if resp.StatusCode == http.StatusOK {
+		if !json.Valid(bodyBytes) {
+			return nil, fmt.Errorf("HTTP %d: response body is not valid JSON", resp.StatusCode)
+		}
 		var responseBody = new(ChatCompletionResponse)
 		err = json.Unmarshal(bodyBytes, responseBody)
 		if err != nil {
@@ -100,12 +106,18 @@ func (w *WrapperImpl) handleGptResponse(accessToken string, metaData *message.Me
 		return responseBody, nil
 	}
 	if resp.StatusCode == http.StatusFailedDependency || metaData == nil {
+		if !json.Valid(bodyBytes) {
+			return nil, fmt.Errorf("HTTP %d: response body is not valid JSON", resp.StatusCode)
+		}
 		var errorResponse = new(ErrorResponse)
 		err = json.Unmarshal(bodyBytes, errorResponse)
 		if err != nil {
 			return nil, err
 		}
 		if errorResponse.Error.Code == errorCodeMaxTokens {
+			if w.dropLen >= len(requestBody.Messages) {
+				return nil, fmt.Errorf("cannot drop %d messages from history of length %d", w.dropLen, len(requestBody.Messages))
+			}
 			return w.Call(accessToken, metaData, &ChatCompletionRequest{
 				Model:    requestBody.Model,
 				Messages: requestBody.Messages[w.dropLen:],

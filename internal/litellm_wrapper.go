@@ -2,13 +2,19 @@ package internal
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/Checkmarx/gen-ai-wrapper/pkg/message"
 )
+
+const httpTimeout = 360 * time.Second
+
+var httpClient = &http.Client{Timeout: httpTimeout}
 
 // LitellmWrapper implements the Wrapper interface for litellm AI proxy service
 type LitellmWrapper struct {
@@ -31,75 +37,78 @@ func (w *LitellmWrapper) SetupCall(messages []message.Message) {
 
 // Call makes a request to the litellm AI proxy service
 func (w *LitellmWrapper) Call(cxAuth string, metaData *message.MetaData, request *ChatCompletionRequest) (*ChatCompletionResponse, error) {
-	// Prepare the request
-	req, err := w.prepareRequest(cxAuth, metaData, request)
+	jsonData, err := json.Marshal(request)
 	if err != nil {
 		return nil, err
 	}
 
-	// Make the HTTP request
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
+	// Use an explicit timeout context so the deadline is visible at the call site
+	ctx, cancel := context.WithTimeout(context.Background(), httpTimeout)
+	defer cancel()
 
-	// Handle the response
-	return w.handleResponse(resp)
-}
-
-// prepareRequest creates the HTTP request
-func (w *LitellmWrapper) prepareRequest(cxAuth string, metaData *message.MetaData, requestBody *ChatCompletionRequest) (*http.Request, error) {
-	jsonData, err := json.Marshal(requestBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, w.endPoint, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, w.endPoint, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, err
-	}
-
-	// Set headers
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", cxAuth))
-
-	// Set required headers for litellm service
 	req.Header.Set("X-Request-ID", metaData.RequestID)
 	req.Header.Set("X-Tenant-ID", metaData.TenantID)
 	req.Header.Set("User-Agent", metaData.UserAgent)
 	req.Header.Set("X-Feature", metaData.Feature)
 
-	return req, nil
-}
-
-// handleResponse processes the HTTP response
-func (w *LitellmWrapper) handleResponse(resp *http.Response) (*ChatCompletionResponse, error) {
-	bodyBytes, err := io.ReadAll(resp.Body)
+	client := &http.Client{Timeout: httpTimeout}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
-	// Handle successful response
-	if resp.StatusCode == http.StatusOK {
-		var responseBody = new(ChatCompletionResponse)
-		err = json.Unmarshal(bodyBytes, responseBody)
-		if err != nil {
-			return nil, err
-		}
-		return responseBody, nil
+	// Validate HTTP status code before processing the body
+	if resp.StatusCode != http.StatusOK {
+		return nil, w.handleErrorResponse(resp)
 	}
 
-	// Handle error responses
-	var errorResponse = new(ErrorResponse)
-	err = json.Unmarshal(bodyBytes, errorResponse)
+	return w.handleSuccessResponse(resp)
+}
+
+// handleSuccessResponse decodes a 200 OK response
+func (w *LitellmWrapper) handleSuccessResponse(resp *http.Response) (*ChatCompletionResponse, error) {
+	bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, 10*1024*1024))
 	if err != nil {
-		// If we can't parse the error response, return a generic error
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(bodyBytes))
+		return nil, err
 	}
+	if len(bodyBytes) == 0 {
+		return nil, fmt.Errorf("HTTP %d: empty response body", resp.StatusCode)
+	}
+	if !json.Valid(bodyBytes) {
+		return nil, fmt.Errorf("HTTP %d: response body is not valid JSON", resp.StatusCode)
+	}
+	var responseBody ChatCompletionResponse
+	if err := json.Unmarshal(bodyBytes, &responseBody); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	return &responseBody, nil
+}
 
-	// Return the parsed error
-	return nil, fromResponse(resp.StatusCode, errorResponse)
+// handleErrorResponse decodes a non-200 response into an error
+func (w *LitellmWrapper) handleErrorResponse(resp *http.Response) error {
+	bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, 10*1024*1024))
+	if err != nil {
+		return fmt.Errorf("HTTP %d: failed to read error body: %w", resp.StatusCode, err)
+	}
+	if len(bodyBytes) == 0 {
+		return fmt.Errorf("HTTP %d: empty error response body", resp.StatusCode)
+	}
+	if !json.Valid(bodyBytes) {
+		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+	var errorResponse ErrorResponse
+	if err := json.Unmarshal(bodyBytes, &errorResponse); err != nil {
+		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+	return fromResponse(resp.StatusCode, &errorResponse)
 }
 
 // Close closes the wrapper (no-op for HTTP client)
