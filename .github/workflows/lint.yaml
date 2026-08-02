@@ -1,0 +1,49 @@
+name: Lint
+
+on:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  golangci-lint:
+    name: Lint (golangci-lint)
+    runs-on: cx-public-ubuntu-x64
+    permissions:
+      contents: read  # for actions/checkout to fetch code
+      pull-requests: read  # for golangci-lint-action to fetch pull requests
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Config Git credentials for private modules
+        run: git config --global url."https://${{ secrets.GITHUB_TOKEN }}@github.com".insteadOf "https://github.com"
+        env:
+          GOPRIVATE: github.com/CheckmarxDev/*,github.com/checkmarxDev/*
+
+      - name: go mod tidy
+        run: go mod tidy
+        env:
+          GOPRIVATE: github.com/CheckmarxDev/*,github.com/checkmarxDev/*
+
+      - name: Run golangci-lint
+        uses: step-security/golangci-lint-action@1797facf9ea427614d729a4e9cab0fae1a7852d9 # v9.2.0
+        with:
+          version: v2.11.3
+          args: -c .golangci.yml --timeout 10m
+          only-new-issues: true
+        env:
+          GOPRIVATE: github.com/CheckmarxDev/*,github.com/checkmarxDev/*

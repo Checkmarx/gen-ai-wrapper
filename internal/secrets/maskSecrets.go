@@ -14,6 +14,8 @@ import (
 const (
 	Base64Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/="
 	HexChars    = "1234567890abcdefABCDEF"
+
+	severityHigh = "HIGH"
 )
 
 //go:embed regex_rules.json
@@ -215,9 +217,9 @@ func ReplaceMatches(fileName string, result string, regexs []SecretRegex, allowR
 				if re.SpecialMask != nil {
 					startOfMatch = re.SpecialMask.FindString(line)
 				}
-				maskedSecret := fmt.Sprintf("%s<masked>", startOfMatch)
-				results = append(results, Result{QueryName: "Passwords And Secrets - " + re.QueryName, Line: index + 1, FileName: fileName, Severity: "HIGH"})
-				return maskedSecret
+				maskedValue := fmt.Sprintf("%s<masked>", startOfMatch)
+				results = append(results, Result{QueryName: "Passwords And Secrets - " + re.QueryName, Line: index + 1, FileName: fileName, Severity: severityHigh})
+				return maskedValue
 			})
 			if originalLine != lines[index] {
 				// Add the masked string to return
@@ -274,7 +276,7 @@ func ReplaceMatches(fileName string, result string, regexs []SecretRegex, allowR
 			}
 			maskedSecret := fmt.Sprintf("%s<masked>", startOfMatch)
 
-			results = append(results, Result{QueryName: "Passwords And Secrets - " + re.QueryName, Line: lineOfSecret, FileName: fileName, Severity: "HIGH"})
+			results = append(results, Result{QueryName: "Passwords And Secrets - " + re.QueryName, Line: lineOfSecret, FileName: fileName, Severity: severityHigh})
 
 			maskedMatchString := strings.Replace(matchString, stringToMask, maskedSecret, 1)
 
