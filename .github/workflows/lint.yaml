@@ -30,8 +30,9 @@ jobs:
           go-version-file: go.mod
 
       - name: Config Git credentials for private modules
-        run: git config --global url."https://${{ secrets.GITHUB_TOKEN }}@github.com".insteadOf "https://github.com"
+        run: git config --global url."https://${GH_TOKEN}@github.com".insteadOf "https://github.com"
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GOPRIVATE: github.com/CheckmarxDev/*,github.com/checkmarxDev/*
 
       - name: go mod tidy
