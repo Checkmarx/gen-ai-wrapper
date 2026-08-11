@@ -218,7 +218,12 @@ func ReplaceMatches(fileName string, result string, regexs []SecretRegex, allowR
 					startOfMatch = re.SpecialMask.FindString(line)
 				}
 				maskedValue := fmt.Sprintf("%s<masked>", startOfMatch)
-				results = append(results, Result{QueryName: "Passwords And Secrets - " + re.QueryName, Line: index + 1, FileName: fileName, Severity: severityHigh})
+				results = append(results, Result{
+					QueryName: "Passwords And Secrets - " + re.QueryName,
+					Line:      index + 1,
+					FileName:  fileName,
+					Severity:  severityHigh,
+				})
 				return maskedValue
 			})
 			if originalLine != lines[index] {
@@ -276,7 +281,12 @@ func ReplaceMatches(fileName string, result string, regexs []SecretRegex, allowR
 			}
 			maskedSecret := fmt.Sprintf("%s<masked>", startOfMatch)
 
-			results = append(results, Result{QueryName: "Passwords And Secrets - " + re.QueryName, Line: lineOfSecret, FileName: fileName, Severity: severityHigh})
+			results = append(results, Result{
+				QueryName: "Passwords And Secrets - " + re.QueryName,
+				Line:      lineOfSecret,
+				FileName:  fileName,
+				Severity:  severityHigh,
+			})
 
 			maskedMatchString := strings.Replace(matchString, stringToMask, maskedSecret, 1)
 

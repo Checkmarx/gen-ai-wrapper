@@ -9,13 +9,24 @@ on:
   schedule:
     - cron: '00 7 * * *'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   cx-one-scan:
     name: cx-one-scan
+    permissions:
+      contents: read
     runs-on: cx-public-ubuntu-x64
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
       - name: Checkmarx One CLI Action
         uses: checkmarx/ast-github-action@86e9ae570a811f9a1fb85903647a307aa3bf6253 # 2.0.44
         with:
