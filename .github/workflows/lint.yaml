@@ -29,16 +29,8 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Config Git credentials for private modules
-        run: git config --global url."https://${GH_TOKEN}@github.com".insteadOf "https://github.com"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GOPRIVATE: github.com/CheckmarxDev/*,github.com/checkmarxDev/*
-
       - name: go mod tidy
         run: go mod tidy
-        env:
-          GOPRIVATE: github.com/CheckmarxDev/*,github.com/checkmarxDev/*
 
       - name: Run golangci-lint
         uses: step-security/golangci-lint-action@1797facf9ea427614d729a4e9cab0fae1a7852d9 # v9.2.0
@@ -46,5 +38,3 @@ jobs:
           version: v2.11.3
           args: -c .golangci.yml --timeout 10m
           only-new-issues: true
-        env:
-          GOPRIVATE: github.com/CheckmarxDev/*,github.com/checkmarxDev/*
