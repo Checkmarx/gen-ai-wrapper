@@ -1,0 +1,27 @@
+name: PR Linter
+
+on:
+  pull_request:
+    types: [opened, edited]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Validate PR Title
+    runs-on: cx-public-ubuntu-x64
+    steps:
+      - name: Check PR Title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          if ! [[ "$PR_TITLE" =~ ^AST-[0-9]+:\ .+ ]]; then
+            echo "::error::PR title must start with a Jira ticket ID in the format 'AST-XXXX: Description'."
+            exit 1
+          fi
+        shell: bash

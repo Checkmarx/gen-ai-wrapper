@@ -6,15 +6,11 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
-	google.golang.org/grpc v1.80.0
+	google.golang.org/grpc v1.82.1 // upgraded to remediate GHSA-hrxh-6v49-42gf
 	google.golang.org/protobuf v1.36.11
 )
 
-require (
-	github.com/go-jose/go-jose/v4 v4.1.4 // indirect; pinned to remediate CVE-2026-34986 (grpc pulls v4.1.3)
-	github.com/rogpeppe/go-internal v1.14.1 // indirect
-	golang.org/x/crypto v0.52.0 // indirect; pinned to remediate CVE-2026-46595, CVE-2026-39829, CVE-2026-39835 (x/net pulls v0.51.0)
-)
+require github.com/rogpeppe/go-internal v1.14.1 // indirect
 
 require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
@@ -30,10 +26,10 @@ require (
 	go.opentelemetry.io/otel v1.44.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.44.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/net v0.54.0 // indirect; upgraded to remediate CVE-2026-39821
-	golang.org/x/sys v0.45.0 // indirect
-	golang.org/x/text v0.37.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260120221211-b8f7ae30c516 // indirect
+	golang.org/x/net v0.57.0 // indirect; upgraded to remediate CVE-2026-39821, CVE-2026-25680
+	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/text v0.40.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
